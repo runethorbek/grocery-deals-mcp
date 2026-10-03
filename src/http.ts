@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createServer, type ServerDependencies } from "./server.js";
+import { createServer, type ServerDependencies } from "./mcp-server.js";
 
 function sendJsonRpcError(res: ServerResponse, status: number, code: number, message: string): void {
   if (res.headersSent) {

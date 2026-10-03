@@ -81,7 +81,7 @@ The endpoint is public and requires no authentication. Examples:
 ## Project layout
 
 - `src/offers.ts` – upstream request, response validation, normalization and current-date filtering
-- `src/server.ts` – MCP server and the `search_deals` tool
+- `src/mcp-server.ts` – MCP server and the `search_deals` tool
 - `src/http.ts` – stateless Streamable HTTP handler
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
