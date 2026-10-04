@@ -10,6 +10,9 @@ export { UpstreamError };
  */
 export const OFFERS_SEARCH_URL = "https://squid-api.tjek.com/v2/offers/search";
 
+/** Upstream: Tjek / eTilbudsavis offers list, used to page through one dealer's offers. */
+export const OFFERS_LIST_URL = "https://squid-api.tjek.com/v2/offers";
+
 /**
  * Every upstream request is scoped to Denmark: a central Danish coordinate
  * with a radius large enough to cover the whole country, including Bornholm.
@@ -129,6 +132,23 @@ export function isValidAt(offer: Offer, now: Date): boolean {
 }
 
 /**
+ * Normalizes every entry of an upstream offers response body, keeping each
+ * entry's position (malformed entries become null). A body that is not an
+ * array, or a non-empty array without a single recognizable offer, is treated
+ * as an unexpected upstream response.
+ */
+function normalizeOfferList(body: unknown): Array<Offer | null> {
+  if (!Array.isArray(body)) {
+    throw new UpstreamError("The offers service returned an unexpected response.");
+  }
+  const offers = body.map(normalizeOffer);
+  if (body.length > 0 && offers.every((offer) => offer === null)) {
+    throw new UpstreamError("The offers service returned offers in an unexpected format.");
+  }
+  return offers;
+}
+
+/**
  * Normalizes an upstream response body and keeps only offers valid at `now`
  * (and, when `dealerIds` is given, only offers from those dealers), up to
  * `limit`. Individual malformed offers are skipped; a body that is not an
@@ -141,13 +161,7 @@ export function selectCurrentOffers(
   limit: number,
   dealerIds?: readonly string[],
 ): Offer[] {
-  if (!Array.isArray(body)) {
-    throw new UpstreamError("The offers service returned an unexpected response.");
-  }
-  const offers = body.map(normalizeOffer).filter((offer): offer is Offer => offer !== null);
-  if (body.length > 0 && offers.length === 0) {
-    throw new UpstreamError("The offers service returned offers in an unexpected format.");
-  }
+  const offers = normalizeOfferList(body).filter((offer): offer is Offer => offer !== null);
   const dealers = dealerIds === undefined ? null : new Set(dealerIds);
   return offers
     .filter((offer) => isValidAt(offer, now) && (dealers === null || dealers.has(offer.dealerId)))
@@ -188,4 +202,78 @@ export async function searchOffers(options: SearchOffersOptions): Promise<Offer[
     timeoutMs,
   });
   return selectCurrentOffers(body, now, limit, dealerIds);
+}
+
+/** Maximum number of upstream pages requested by one `getStoreOffers` call. */
+export const MAX_STORE_OFFER_REQUESTS = 3;
+
+/**
+ * Upstream list of one dealer's offers in catalog page order, one page of
+ * `UPSTREAM_LIMIT` offers starting at position `offset`.
+ */
+export function buildStoreOffersUrl(dealerId: string, offset: number): string {
+  const params = new URLSearchParams({
+    order_by: "page",
+    limit: String(UPSTREAM_LIMIT),
+    offset: String(offset),
+    r_lat: String(DENMARK_LOCATION.latitude),
+    r_lng: String(DENMARK_LOCATION.longitude),
+    r_radius: String(DENMARK_LOCATION.radiusMeters),
+  });
+  return `${OFFERS_LIST_URL}?${dealerIdsParam([dealerId])}&${params}`;
+}
+
+export interface StoreOffersPage {
+  offers: Offer[];
+  /** Position to continue from in a follow-up call; null when the upstream list is exhausted. */
+  nextOffset: number | null;
+}
+
+export interface GetStoreOffersOptions {
+  dealerId: string;
+  limit: number;
+  /** Position in the dealer's upstream offer list, which also contains non-current offers. */
+  offset: number;
+  now: Date;
+  fetch: typeof globalThis.fetch;
+  timeoutMs?: number;
+}
+
+/**
+ * Returns up to `limit` offers from one dealer that are valid at `now`, in
+ * upstream order, starting at upstream position `offset`. Consecutive upstream
+ * pages are fetched until `limit` is reached, the list ends (a short page) or
+ * `MAX_STORE_OFFER_REQUESTS` pages were requested. `nextOffset` is the
+ * position right after the last offer examined.
+ * Throws `UpstreamError` for HTTP errors, timeouts, network failures and
+ * malformed responses on any page; no partial result is returned.
+ */
+export async function getStoreOffers(options: GetStoreOffersOptions): Promise<StoreOffersPage> {
+  const { dealerId, limit, offset, now, fetch, timeoutMs } = options;
+  const offers: Offer[] = [];
+  let position = offset;
+
+  for (let request = 0; request < MAX_STORE_OFFER_REQUESTS; request++) {
+    const body = await fetchUpstreamJson(buildStoreOffersUrl(dealerId, position), {
+      service: "offers service",
+      fetch,
+      timeoutMs,
+    });
+    const page = normalizeOfferList(body);
+    const exhausted = page.length < UPSTREAM_LIMIT;
+
+    for (const [index, offer] of page.entries()) {
+      if (offer === null || offer.dealerId !== dealerId || !isValidAt(offer, now)) continue;
+      offers.push(offer);
+      if (offers.length === limit) {
+        const examinedWholePage = index === page.length - 1;
+        return { offers, nextOffset: exhausted && examinedWholePage ? null : position + index + 1 };
+      }
+    }
+
+    if (exhausted) return { offers, nextOffset: null };
+    position += page.length;
+  }
+
+  return { offers, nextOffset: position };
 }
