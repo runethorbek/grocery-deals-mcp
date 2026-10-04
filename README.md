@@ -6,10 +6,11 @@ A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsav
 
 Searches grocery offers in Denmark that are valid at the time of the call.
 
-| Input   | Type    | Notes                                   |
-|---------|---------|-----------------------------------------|
-| `query` | string  | Required, must not be empty.            |
-| `limit` | integer | Optional, 1–50, default 10.             |
+| Input       | Type     | Notes                                                        |
+|-------------|----------|--------------------------------------------------------------|
+| `query`     | string   | Required, must not be empty.                                 |
+| `limit`     | integer  | Optional, 1–50, default 10.                                  |
+| `dealerIds` | string[] | Optional, 1–20 non-empty dealer IDs (e.g. from `list_stores`). |
 
 Each result in `structuredContent.offers` contains:
 `id`, `title`, `description`, `price`, `previousPrice` (or `null`), `currency`,
@@ -22,8 +23,52 @@ Behavior:
   There is no location input.
 - The server requests up to 100 offers upstream, keeps only offers where `validFrom <= now <= validUntil`,
   and then returns at most `limit`. Fewer results than `limit` are possible.
+- With `dealerIds`, the upstream request is restricted to those dealers and the results are also filtered
+  locally, so only offers from those stores are returned (before `limit` is applied). Any dealer ID is
+  accepted; unknown IDs give an empty `offers` list. With several dealers, one store may fill most of the
+  100-offer upstream window. Without `dealerIds`, nothing changes.
 - Upstream HTTP errors, malformed responses and timeouts (8 s) return an MCP tool result with `isError: true`.
-- Invalid input (empty `query`, `limit` outside 1–50) is rejected with an input validation error.
+- Invalid input (empty `query`, `limit` outside 1–50, an empty or too long `dealerIds` array, or an empty
+  dealer ID) is rejected with an input validation error.
+
+## Tool: `list_stores`
+
+Lists Danish grocery stores and their dealer IDs, sorted by name.
+
+| Input   | Type    | Notes                                                              |
+|---------|---------|--------------------------------------------------------------------|
+| `query` | string  | Optional; if given, must not be empty. Case-insensitive substring match on the store name. |
+| `limit` | integer | Optional, 1–50, default 50.                                        |
+
+Returns `structuredContent.stores`, each `{ name, dealerId }`.
+
+Behavior:
+
+- The set of grocery stores is a curated allowlist of dealer IDs in `src/stores.ts`
+  (365discount, ABC Lavpris, Bilka, Brugsen, Coop.dk MAD, føtex, Kvickly, Lidl, Løvbjerg, MENY,
+  Min Købmand, nemlig, Netto, REMA 1000, SPAR, SuperBrugsen). Store names come from the upstream;
+  allowlisted stores the upstream does not return are omitted.
+- `query` is matched locally, e.g. `"brugsen"` matches Brugsen and SuperBrugsen.
+- Upstream failures and invalid input are handled as for `search_deals`.
+
+## Example: deals from selected stores
+
+1. Discover the stores and their dealer IDs:
+
+   ```jsonc
+   // list_stores
+   { "query": "netto" }
+   // → { "stores": [{ "name": "Netto", "dealerId": "9ba51" }] }
+   ```
+
+2. Search only in Netto, REMA 1000 and Lidl:
+
+   ```jsonc
+   // search_deals
+   { "query": "kylling", "dealerIds": ["9ba51", "11deC", "71c90"] }
+   ```
+
+   Every returned offer has a `dealerId` from the list.
 
 ## Local development
 
@@ -51,7 +96,8 @@ npx @modelcontextprotocol/inspector
 
 1. Open the URL the Inspector prints (it includes an auth token).
 2. Transport type: **Streamable HTTP**. URL: `http://localhost:3000/mcp`. Click **Connect**.
-3. Go to **Tools** → **List Tools** → `search_deals`, enter `{ "query": "hakket oksekød" }` and run it.
+3. Go to **Tools** → **List Tools**. Run `search_deals` with `{ "query": "hakket oksekød" }`,
+   or `list_stores` with `{ "query": "netto" }`.
 
 **Non-interactive (CLI mode, useful for agents and scripts):**
 
@@ -60,13 +106,16 @@ npx @modelcontextprotocol/inspector
 npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http --method tools/list
 
 # Call search_deals
-npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http   --method tools/call --tool-name search_deals --tool-arg query=kaffe --tool-arg limit=3
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http --method tools/call --tool-name search_deals --tool-arg query=kaffe --tool-arg limit=3
+
+# Call list_stores
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http --method tools/call --tool-name list_stores --tool-arg query=netto
 ```
 
 **Raw HTTP (no Inspector):**
 
 ```sh
-curl -X POST http://localhost:3000/mcp   -H "content-type: application/json"   -H "accept: application/json, text/event-stream"   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl -X POST http://localhost:3000/mcp -H "content-type: application/json" -H "accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
 The same commands work against a deployment by replacing the URL with `https://<your-project>.vercel.app/mcp`.
@@ -131,8 +180,10 @@ A local server (`localhost`) cannot be used as a custom connector, because Claud
 
 ## Project layout
 
-- `src/offers.ts` – upstream request, response validation, normalization and current-date filtering
-- `src/mcp-server.ts` – MCP server and the `search_deals` tool
+- `src/offers.ts` – offers search request, response validation, normalization, current-date and dealer filtering
+- `src/stores.ts` – grocery store allowlist, dealers request, normalization and name filtering
+- `src/upstream.ts` – shared upstream fetch with timeout and error handling
+- `src/mcp-server.ts` – MCP server and the `search_deals` and `list_stores` tools
 - `src/http.ts` – stateless Streamable HTTP handler
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
