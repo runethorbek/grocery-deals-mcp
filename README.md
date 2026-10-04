@@ -35,16 +35,41 @@ npm run dev
 ```
 
 The MCP endpoint is served over Streamable HTTP at `http://localhost:3000/mcp`
-(set `PORT` to use another port). The server is stateless: every request is handled independently.
+(set `PORT` to use another port). The server is stateless: every request is handled independently,
+and only `POST` is supported.
 
-Try it with the MCP Inspector:
+## Testing locally with the MCP Inspector
+
+Start the server with `npm run dev`, then use the
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector) in a second terminal.
+
+**Interactive (browser UI):**
 
 ```sh
 npx @modelcontextprotocol/inspector
 ```
 
-Choose transport "Streamable HTTP", enter `http://localhost:3000/mcp`, connect, and call `search_deals`
-with `{ "query": "hakket oksekød" }`.
+1. Open the URL the Inspector prints (it includes an auth token).
+2. Transport type: **Streamable HTTP**. URL: `http://localhost:3000/mcp`. Click **Connect**.
+3. Go to **Tools** → **List Tools** → `search_deals`, enter `{ "query": "hakket oksekød" }` and run it.
+
+**Non-interactive (CLI mode, useful for agents and scripts):**
+
+```sh
+# List tools
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http --method tools/list
+
+# Call search_deals
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http   --method tools/call --tool-name search_deals --tool-arg query=kaffe --tool-arg limit=3
+```
+
+**Raw HTTP (no Inspector):**
+
+```sh
+curl -X POST http://localhost:3000/mcp   -H "content-type: application/json"   -H "accept: application/json, text/event-stream"   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+The same commands work against a deployment by replacing the URL with `https://<your-project>.vercel.app/mcp`.
 
 ## Tests and type-check
 
@@ -55,28 +80,54 @@ npm run typecheck # tsc --noEmit
 
 ## Deploying to Vercel
 
-No environment variables or secrets are required.
+How it fits together:
 
-1. Import the repository in Vercel (or run `npx vercel link` locally). Use the "Other" framework preset;
-   no build command or output directory is needed.
-2. Deploy (`npx vercel --prod`, or push to the production branch once the Git integration is set up).
+- `api/mcp.ts` is a Vercel Node.js function (no framework, no build step; Vercel compiles the TypeScript).
+- `vercel.json` rewrites `/mcp` to `/api/mcp`, so the public endpoint is `https://<your-project>.vercel.app/mcp`.
+- No environment variables or secrets are required. The Tjek API is called without credentials.
 
-`api/mcp.ts` is a Vercel Node.js function, and `vercel.json` rewrites `/mcp` to it, so the deployed
-endpoint is `https://<your-project>.vercel.app/mcp`.
+Steps (Vercel CLI):
 
-## Connecting an MCP client
-
-Point any MCP client that supports remote servers over Streamable HTTP at the deployed endpoint:
-
-```
-https://<your-project>.vercel.app/mcp
+```sh
+npx vercel login          # once per machine
+npx vercel link           # create or link the Vercel project; framework preset "Other", no build/output settings
+npx vercel                # preview deployment
+npx vercel --prod         # production deployment
 ```
 
-The endpoint is public and requires no authentication. Examples:
+Alternatively, import the GitHub repository in the Vercel dashboard (framework preset "Other");
+pushes to `main` then deploy to production automatically.
 
-- **MCP Inspector:** `npx @modelcontextprotocol/inspector`, transport "Streamable HTTP", URL as above.
-- **Claude Code:** `claude mcp add --transport http grocery-deals https://<your-project>.vercel.app/mcp`
-- **Claude / ChatGPT (web):** add a custom connector with the URL above.
+Verify the deployment with the Inspector CLI or curl from the section above, using the production URL.
+If a request returns `401` with a Vercel login page, Deployment Protection is enabled for that URL
+(the default for preview deployments). Use the production domain or disable protection under
+Project → Settings → Deployment Protection, since MCP clients cannot pass the Vercel login.
+
+## Adding the server to Claude
+
+The endpoint is public and requires no authentication. Use the production URL
+`https://<your-project>.vercel.app/mcp` (or `http://localhost:3000/mcp` for a local server in Claude Code).
+
+**Claude Code:**
+
+```sh
+claude mcp add --transport http grocery-deals https://<your-project>.vercel.app/mcp
+# add --scope user to make it available in all projects, --scope project to share it via .mcp.json
+claude mcp list           # check the connection
+```
+
+Inside a session, `/mcp` shows the server and its tools.
+
+**Claude.ai and Claude Desktop (custom connector):**
+
+1. Settings → **Connectors** → **Add custom connector**.
+2. Name: `Grocery deals`. URL: `https://<your-project>.vercel.app/mcp`. Leave OAuth settings empty.
+3. Enable the connector in a chat (the tools menu) and ask e.g. "Hvilke tilbud er der på kaffe?".
+
+Connectors added on claude.ai are also available in Claude Desktop and the Claude mobile apps.
+A local server (`localhost`) cannot be used as a custom connector, because Claude connects from the cloud.
+
+**Other MCP clients:** any client that supports remote MCP servers over Streamable HTTP can use the same URL.
 
 ## Project layout
 
