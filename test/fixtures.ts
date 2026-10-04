@@ -66,3 +66,20 @@ export function jsonResponse(body: unknown, status = 200): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+/**
+ * Stubbed, stable upstream offers list: answers each request with the slice of
+ * `rawOffers` given by its `offset` and `limit` parameters.
+ */
+export function pagedOffersUpstream(rawOffers: readonly unknown[]): typeof globalThis.fetch {
+  return async (input) => {
+    const params = new URL(String(input)).searchParams;
+    const offset = Number(params.get("offset"));
+    return jsonResponse(rawOffers.slice(offset, offset + Number(params.get("limit"))));
+  };
+}
+
+/** An offer of the given dealer that has not started yet at `NOW`. */
+export function futureRawOffer(id: string, dealerId = "9ba51"): Record<string, unknown> {
+  return rawOffer({ id, dealer_id: dealerId, run_from: "2026-10-04T22:00:00+0000", run_till: "2026-10-10T21:59:59+0000" });
+}

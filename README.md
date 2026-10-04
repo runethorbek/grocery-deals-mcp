@@ -51,6 +51,38 @@ Behavior:
 - `query` is matched locally, e.g. `"brugsen"` matches Brugsen and SuperBrugsen.
 - Upstream failures and invalid input are handled as for `search_deals`.
 
+## Tool: `get_store_offers`
+
+Lists all offers from one store that are valid at the time of the call, page by page, in catalog order.
+
+| Input      | Type    | Notes                                                               |
+|------------|---------|---------------------------------------------------------------------|
+| `dealerId` | string  | Required, must not be empty. The store's dealer ID from `list_stores`. |
+| `limit`    | integer | Optional, 1–100, default 50.                                        |
+| `offset`   | integer | Optional, 0 or more, default 0. Use `nextOffset` from the previous call. |
+
+Returns `structuredContent` as `{ offers, nextOffset }`. Each offer has the same fields as in `search_deals`.
+
+Paging:
+
+- Start with `offset: 0` (or omit it). To get the next page, call again with `offset` set to the returned
+  `nextOffset`. Repeat until `nextOffset` is `null`, which means there are no more offers.
+- Following `nextOffset` returns every current offer of the store exactly once, as long as the store's
+  offers do not change between calls. There is no snapshot across calls.
+- A call can return fewer than `limit` offers, or none at all, even when `nextOffset` is not `null`.
+  The upstream list also contains offers that are not valid yet or have expired; these are skipped, and
+  one call reads at most 300 upstream offers. Keep paging until `nextOffset` is `null`.
+
+Behavior:
+
+- Only offers from `dealerId` with `validFrom <= now <= validUntil` are returned, in upstream order.
+  Requests are scoped to Denmark as for `search_deals`.
+- Any dealer ID is accepted; an unknown ID returns `{ "offers": [], "nextOffset": null }`.
+- Upstream HTTP errors, malformed responses and timeouts on any upstream page return an MCP tool result
+  with `isError: true` and no partial results.
+- Invalid input (empty `dealerId`, `limit` outside 1–100, a negative or non-integer `offset`) is rejected
+  with an input validation error.
+
 ## Example: deals from selected stores
 
 1. Discover the stores and their dealer IDs:
@@ -69,6 +101,32 @@ Behavior:
    ```
 
    Every returned offer has a `dealerId` from the list.
+
+## Example: everything on offer at one store
+
+1. Find the store's dealer ID:
+
+   ```jsonc
+   // list_stores
+   { "query": "netto" }
+   // → { "stores": [{ "name": "Netto", "dealerId": "9ba51" }] }
+   ```
+
+2. Get the first page of Netto's current offers:
+
+   ```jsonc
+   // get_store_offers
+   { "dealerId": "9ba51", "limit": 100 }
+   // → { "offers": [ ... ], "nextOffset": 100 }
+   ```
+
+3. Continue with the returned `nextOffset` until it is `null`:
+
+   ```jsonc
+   // get_store_offers
+   { "dealerId": "9ba51", "limit": 100, "offset": 100 }
+   // → { "offers": [ ... ], "nextOffset": null }
+   ```
 
 ## Local development
 
@@ -97,7 +155,7 @@ npx @modelcontextprotocol/inspector
 1. Open the URL the Inspector prints (it includes an auth token).
 2. Transport type: **Streamable HTTP**. URL: `http://localhost:3000/mcp`. Click **Connect**.
 3. Go to **Tools** → **List Tools**. Run `search_deals` with `{ "query": "hakket oksekød" }`,
-   or `list_stores` with `{ "query": "netto" }`.
+   `list_stores` with `{ "query": "netto" }`, or `get_store_offers` with `{ "dealerId": "9ba51" }`.
 
 **Non-interactive (CLI mode, useful for agents and scripts):**
 
@@ -180,10 +238,11 @@ A local server (`localhost`) cannot be used as a custom connector, because Claud
 
 ## Project layout
 
-- `src/offers.ts` – offers search request, response validation, normalization, current-date and dealer filtering
+- `src/offers.ts` – offers search and store offer paging requests, response validation, normalization,
+  current-date and dealer filtering
 - `src/stores.ts` – grocery store allowlist, dealers request, normalization and name filtering
 - `src/upstream.ts` – shared upstream fetch with timeout and error handling
-- `src/mcp-server.ts` – MCP server and the `search_deals` and `list_stores` tools
+- `src/mcp-server.ts` – MCP server and the `search_deals`, `list_stores` and `get_store_offers` tools
 - `src/http.ts` – stateless Streamable HTTP handler
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
