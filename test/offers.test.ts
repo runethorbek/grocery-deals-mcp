@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DENMARK_LOCATION,
   UPSTREAM_LIMIT,
+  buildSearchUrl,
   normalizeOffer,
   searchOffers,
   selectCurrentOffers,
@@ -101,6 +102,18 @@ describe("selectCurrentOffers", () => {
     expect(() => selectCurrentOffers({ error: "nope" }, NOW, 10)).toThrow(UpstreamError);
   });
 
+  it("keeps only offers from the given dealers and applies the limit after that filter", () => {
+    const body = [
+      rawOffer({ id: "bilka1", dealer_id: "93f13" }),
+      rawOffer({ id: "netto1", dealer_id: "9ba51" }),
+      rawOffer({ id: "bilka2", dealer_id: "93f13" }),
+      rawOffer({ id: "lidl1", dealer_id: "71c90" }),
+      rawOffer({ id: "netto2", dealer_id: "9ba51" }),
+    ];
+    expect(selectCurrentOffers(body, NOW, 2, ["9ba51", "71c90"]).map((o) => o.id)).toEqual(["netto1", "lidl1"]);
+    expect(selectCurrentOffers(body, NOW, 10, ["unknown"])).toEqual([]);
+  });
+
   it("rejects a non-empty array without any recognizable offer", () => {
     expect(() => selectCurrentOffers([{ foo: 1 }, { bar: 2 }], NOW, 10)).toThrow(UpstreamError);
   });
@@ -122,6 +135,25 @@ describe("searchOffers", () => {
     expect(url.searchParams.get("r_lng")).toBe(String(DENMARK_LOCATION.longitude));
     expect(url.searchParams.get("r_radius")).toBe(String(DENMARK_LOCATION.radiusMeters));
     expect(fetch.mock.calls[0]![1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("does not add a dealer filter when dealerIds is omitted", () => {
+    expect(new URL(buildSearchUrl("mælk")).searchParams.has("dealer_ids")).toBe(false);
+  });
+
+  it("restricts the upstream request to the given dealers and filters locally", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(
+        jsonResponse([rawOffer({ id: "netto", dealer_id: "9ba51" }), rawOffer({ id: "bilka", dealer_id: "93f13" })]),
+      );
+
+    const offers = await searchOffers({ query: "kylling", limit: 10, dealerIds: ["9ba51", "11deC"], now: NOW, fetch });
+
+    expect(offers.map((o) => o.id)).toEqual(["netto"]);
+    const url = String(fetch.mock.calls[0]![0]);
+    expect(url).toBe(`${buildSearchUrl("kylling")}&dealer_ids=9ba51,11deC`);
+    expect(new URL(url).searchParams.get("dealer_ids")).toBe("9ba51,11deC");
   });
 
   it("fails with the HTTP status on upstream HTTP errors", async () => {

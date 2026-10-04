@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { dealerIdsParam, fetchUpstreamJson, UpstreamError } from "./upstream.js";
+
+export { UpstreamError };
 
 /**
  * Upstream: Tjek / eTilbudsavis offers search.
@@ -24,8 +27,6 @@ export const DENMARK_LOCATION = {
  */
 export const UPSTREAM_LIMIT = 100;
 
-export const DEFAULT_TIMEOUT_MS = 8_000;
-
 /** Normalized, Tjek-independent offer returned by `search_deals`. */
 export interface Offer {
   id: string;
@@ -47,14 +48,6 @@ export interface OfferQuantity {
   sizeTo: number | null;
   piecesFrom: number | null;
   piecesTo: number | null;
-}
-
-/** Raised for any upstream failure; the message is safe to show to MCP clients. */
-export class UpstreamError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UpstreamError";
-  }
 }
 
 const range = z
@@ -136,12 +129,18 @@ export function isValidAt(offer: Offer, now: Date): boolean {
 }
 
 /**
- * Normalizes an upstream response body and keeps only offers valid at `now`,
- * up to `limit`. Individual malformed offers are skipped; a body that is not
- * an array, or a non-empty array without a single recognizable offer, is
+ * Normalizes an upstream response body and keeps only offers valid at `now`
+ * (and, when `dealerIds` is given, only offers from those dealers), up to
+ * `limit`. Individual malformed offers are skipped; a body that is not an
+ * array, or a non-empty array without a single recognizable offer, is
  * treated as an unexpected upstream response.
  */
-export function selectCurrentOffers(body: unknown, now: Date, limit: number): Offer[] {
+export function selectCurrentOffers(
+  body: unknown,
+  now: Date,
+  limit: number,
+  dealerIds?: readonly string[],
+): Offer[] {
   if (!Array.isArray(body)) {
     throw new UpstreamError("The offers service returned an unexpected response.");
   }
@@ -149,26 +148,28 @@ export function selectCurrentOffers(body: unknown, now: Date, limit: number): Of
   if (body.length > 0 && offers.length === 0) {
     throw new UpstreamError("The offers service returned offers in an unexpected format.");
   }
-  return offers.filter((offer) => isValidAt(offer, now)).slice(0, limit);
+  const dealers = dealerIds === undefined ? null : new Set(dealerIds);
+  return offers
+    .filter((offer) => isValidAt(offer, now) && (dealers === null || dealers.has(offer.dealerId)))
+    .slice(0, limit);
 }
 
-export function buildSearchUrl(query: string): string {
+export function buildSearchUrl(query: string, dealerIds?: readonly string[]): string {
   const url = new URL(OFFERS_SEARCH_URL);
   url.searchParams.set("query", query);
   url.searchParams.set("limit", String(UPSTREAM_LIMIT));
   url.searchParams.set("r_lat", String(DENMARK_LOCATION.latitude));
   url.searchParams.set("r_lng", String(DENMARK_LOCATION.longitude));
   url.searchParams.set("r_radius", String(DENMARK_LOCATION.radiusMeters));
-  return url.toString();
-}
-
-function isTimeout(error: unknown): boolean {
-  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+  const base = url.toString();
+  return dealerIds === undefined ? base : `${base}&${dealerIdsParam(dealerIds)}`;
 }
 
 export interface SearchOffersOptions {
   query: string;
   limit: number;
+  /** When given, only offers from these dealers are requested and returned. */
+  dealerIds?: readonly string[];
   now: Date;
   fetch: typeof globalThis.fetch;
   timeoutMs?: number;
@@ -180,34 +181,11 @@ export interface SearchOffersOptions {
  * malformed responses.
  */
 export async function searchOffers(options: SearchOffersOptions): Promise<Offer[]> {
-  const { query, limit, now, fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
-
-  let response: Response;
-  try {
-    response = await fetch(buildSearchUrl(query), {
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (error) {
-    if (isTimeout(error)) {
-      throw new UpstreamError(`The offers service did not respond within ${timeoutMs} ms.`);
-    }
-    throw new UpstreamError("Could not reach the offers service.");
-  }
-
-  if (!response.ok) {
-    throw new UpstreamError(`The offers service responded with HTTP ${response.status}.`);
-  }
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch (error) {
-    if (isTimeout(error)) {
-      throw new UpstreamError(`The offers service did not respond within ${timeoutMs} ms.`);
-    }
-    throw new UpstreamError("The offers service returned a response that is not valid JSON.");
-  }
-
-  return selectCurrentOffers(body, now, limit);
+  const { query, limit, dealerIds, now, fetch, timeoutMs } = options;
+  const body = await fetchUpstreamJson(buildSearchUrl(query, dealerIds), {
+    service: "offers service",
+    fetch,
+    timeoutMs,
+  });
+  return selectCurrentOffers(body, now, limit, dealerIds);
 }
