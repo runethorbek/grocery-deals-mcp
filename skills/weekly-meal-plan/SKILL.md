@@ -26,7 +26,7 @@ Each offer has `id`, `title`, `description`, `price`, `previousPrice` (or `null`
 
 ## 2. Retrieving offers
 
-If any Grocery Deals tool is unavailable, or a call returns an error, tell the user that the grocery offer data could not be retrieved (include the error message) and stop. Do not produce a plan from general knowledge or invented offers. Retrying a failed call once is fine.
+If a call returns an error, you may retry it once. If any Grocery Deals tool is unavailable, or a call still fails after that one retry, tell the user that the grocery offer data could not be retrieved (include the error message) and stop. Do not produce a plan from general knowledge or invented offers.
 
 1. **Resolve stores.** Call `list_stores` with each store name the user gave (e.g. `query: "netto"`, `query: "rema"`). Use the `dealerId` from the result; never guess or reuse an ID from memory.
    - Exactly one match: use it.
