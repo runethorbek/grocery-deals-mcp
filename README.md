@@ -31,9 +31,11 @@ claude plugin install grocery-deals@grocery-deals-mcp
 2. Add the `grocery-deals` plugin.
 3. On the plugin's **Connectors** tab, add the `grocery-deals` connector. No sign-in is needed.
 
-A plugin added on claude.ai is saved to your account and also reaches Claude Code as a synced plugin.
-If your organization does not let you add marketplaces, or the plugin cannot be added, use the manual setup in
-[Adding the server to Claude](#adding-the-server-to-claude) instead.
+A plugin added on claude.ai is saved to your account; Claude Code signed in to the same account downloads it as a
+synced plugin at the next session start.
+If no `grocery-deals` connector appears on the plugin's **Connectors** tab, add the custom connector manually as
+described in [Adding the server to Claude](#adding-the-server-to-claude). If your organization does not let you add
+marketplaces, or the plugin cannot be added, use the full manual setup there instead.
 
 **Avoid duplicate tools.** If you added the server or the skill manually before, remove that copy:
 
