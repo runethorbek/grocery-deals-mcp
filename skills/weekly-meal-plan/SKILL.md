@@ -15,7 +15,7 @@ Use the Grocery Deals MCP tools. Their names may carry a client or connector pre
 - `get_store_offers({ dealerId, limit? (1–100), offset? })` → `{ offers, nextOffset }`. Pass `nextOffset` as the next `offset`; `null` means no more offers. A page can hold fewer than `limit` offers, even zero, while `nextOffset` is not `null`.
 - `search_deals({ query, limit? (1–50), dealerIds? })` → `{ offers }`. Offer titles are Danish, so search in Danish (e.g. "kylling", "hakket oksekød", "laks", "broccoli").
 
-Each offer has `id`, `title`, `description`, `price`, `previousPrice` (or `null`), `currency`, `quantity`, `storeName`, `dealerId`, `validFrom`, `validUntil` (ISO 8601, UTC). All tools return only offers valid at the time of the call.
+Each offer has `id`, `title`, `description`, `price`, `previousPrice` (or `null`), `currency`, `quantity`, `storeName`, `dealerId`, `validFrom`, `validUntil` (ISO 8601, UTC). All tools return only offers valid at the time of the call. If `storeName` is null, use the store name that `list_stores` resolved for that offer's `dealerId`.
 
 ## 1. Inputs
 
@@ -53,7 +53,7 @@ Start with any assumptions (default days/people, start date, unresolved stores).
 
 1. **Meal plan** – one entry per day: day and date, dish name, a one-line description, and an approximate cooking time when the user asked for a time limit.
 2. **Offers used per meal** – under each meal, list every offer that influenced it: title, store, price with currency, and valid until date. Show a saving only when `previousPrice` is present (e.g. "before 49.95 DKK"); never derive or state a saving otherwise. Add a "buy by <date>" flag when the offer expires before the meal's day.
-3. **Shopping list** – consolidated across all meals and grouped by store. List each item once per store with the total amount needed for the whole plan. Mark items that are on offer (with price and valid-until date). Put items not on offer in a separate group ("Any store" or similar), unless the user prefers otherwise.
+3. **Shopping list** – consolidated across all meals and grouped by store. List each item once per store with the total amount needed for the whole plan. Mark items that are on offer (with price and valid-until date). Put items not on offer in a separate group ("Any store" or similar), unless the user prefers otherwise. If an item on offer is needed in a larger amount than the offer covers, list it once, under the store with the offer, with the total amount needed.
 4. **Notes** – ingredients not covered by any offer, pantry staples assumed (oil, salt, spices), and anything flagged for validity.
 
 ## Data integrity
