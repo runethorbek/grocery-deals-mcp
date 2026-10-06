@@ -4,23 +4,25 @@ A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsav
 
 ## Adding the server to Claude
 
-The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so there is
-nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill adds meal
-planning on top of the tools.
+The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so the
+connector needs nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill
+adds meal planning on top of the tools; packaging it for claude.ai needs a clone of this repository (or a hand-made zip).
 
 **Claude.ai and Claude Desktop (custom connector and skill):**
 
 1. Settings → **Connectors** → **Add custom connector**.
 2. Name: `Grocery deals`. URL: `https://grocery-deals-mcp.vercel.app/mcp`. Leave OAuth settings empty.
 3. Enable the connector in a chat (the tools menu) and ask e.g. "Hvilke tilbud er der på kaffe?".
-4. For meal plans: zip the `skills/weekly-meal-plan/` folder (the folder itself, so the archive contains
-   `weekly-meal-plan/SKILL.md`), upload it under **Customize → Skills**, and turn it on.
+4. For meal plans: in a clone of this repository, run `npm install` and `npm run package-skills`, then upload
+   `dist/skills/weekly-meal-plan.zip` under **Customize → Skills** and turn it on. To zip by hand instead, zip the
+   folder itself, so the archive contains `weekly-meal-plan/SKILL.md`.
 
 Connectors added on claude.ai are also available in Claude Desktop and the Claude mobile apps.
 A local server (`localhost`) cannot be used as a custom connector, because Claude connects from the cloud.
 
-To update the skill after `skills/weekly-meal-plan/` changes, zip the folder again the same way and upload it again
-under **Customize → Skills**.
+To update the skill after `skills/weekly-meal-plan/` changes, run `npm run package-skills` again and upload the new
+`dist/skills/weekly-meal-plan.zip` under **Customize → Skills**. The script writes one zip per folder in `skills/`
+that contains a `SKILL.md`, overwrites existing zips and prints the path of each zip it writes.
 
 **Example.** With the connector and the skill turned on, ask in a new conversation:
 
@@ -283,5 +285,6 @@ Project → Settings → Deployment Protection, since MCP clients cannot pass th
 - `src/http.ts` – stateless Streamable HTTP handler
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
+- `scripts/package-skills.ts` – zips each skill in `skills/` to `dist/skills/<name>.zip` for upload to claude.ai
 - `skills/weekly-meal-plan/` – the meal-planning skill
 - `test/` – tests
