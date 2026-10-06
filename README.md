@@ -4,9 +4,9 @@ A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsav
 
 ## Adding the server to Claude
 
-The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so there is
-nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill adds meal
-planning on top of the tools.
+The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so the
+connector needs nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill
+adds meal planning on top of the tools; packaging it for claude.ai needs a clone of this repository (or a hand-made zip).
 
 **Claude.ai and Claude Desktop (custom connector and skill):**
 
