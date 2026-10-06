@@ -2,49 +2,27 @@
 
 A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsavis API as MCP tools.
 
-## Install as a Claude plugin
+## Adding the server to Claude
 
-The `grocery-deals` plugin bundles the [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill and connects
-to the hosted server at `https://grocery-deals-mcp.vercel.app/mcp`. There is nothing to clone and no local process;
-the server is public and needs no sign-in.
+The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so there is
+nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill adds meal
+planning on top of the tools.
 
-**Claude Code** (terminal, desktop app Code tab, VS Code). Inside a session:
+**Claude.ai and Claude Desktop (custom connector and skill):**
 
-```text
-/plugin marketplace add runethorbek/grocery-deals-mcp
-/plugin install grocery-deals@grocery-deals-mcp
-```
+1. Settings → **Connectors** → **Add custom connector**.
+2. Name: `Grocery deals`. URL: `https://grocery-deals-mcp.vercel.app/mcp`. Leave OAuth settings empty.
+3. Enable the connector in a chat (the tools menu) and ask e.g. "Hvilke tilbud er der på kaffe?".
+4. For meal plans: zip the `skills/weekly-meal-plan/` folder (the folder itself, so the archive contains
+   `weekly-meal-plan/SKILL.md`), upload it under **Customize → Skills**, and turn it on.
 
-Or from your shell, then start a new session:
+Connectors added on claude.ai are also available in Claude Desktop and the Claude mobile apps.
+A local server (`localhost`) cannot be used as a custom connector, because Claude connects from the cloud.
 
-```sh
-claude plugin marketplace add runethorbek/grocery-deals-mcp
-claude plugin install grocery-deals@grocery-deals-mcp
-```
+To update the skill after `skills/weekly-meal-plan/` changes, zip the folder again the same way and upload it again
+under **Customize → Skills**.
 
-`/mcp` then lists the plugin's `grocery-deals` server with the tools `search_deals`, `list_stores` and
-`get_store_offers`, and the skill is available as `/grocery-deals:weekly-meal-plan`.
-
-**claude.ai and Claude Desktop** (chat and Cowork):
-
-1. Go to **Customize → Plugins → Add → Add marketplace** and enter `runethorbek/grocery-deals-mcp`.
-2. Add the `grocery-deals` plugin.
-3. On the plugin's **Connectors** tab, add the `grocery-deals` connector. No sign-in is needed.
-
-A plugin added on claude.ai is saved to your account; Claude Code signed in to the same account downloads it as a
-synced plugin at the next session start.
-If no `grocery-deals` connector appears on the plugin's **Connectors** tab, add the custom connector manually as
-described in [Adding the server to Claude](#adding-the-server-to-claude). If your organization does not let you add
-marketplaces, or the plugin cannot be added, use the full manual setup there instead.
-
-**Avoid duplicate tools.** If you added the server or the skill manually before, remove that copy:
-
-- Claude Code: `claude mcp remove grocery-deals` (repeat with `-s user`, `-s project` or `-s local` if it exists in
-  several scopes), and delete any copy of the skill in `~/.claude/skills/weekly-meal-plan/`.
-- claude.ai / Claude Desktop: remove the manually added custom connector under **Settings → Connectors**, and turn
-  off or delete a manually uploaded `weekly-meal-plan` skill under **Customize → Skills**.
-
-**Example.** In a new conversation, ask:
+**Example.** With the connector and the skill turned on, ask in a new conversation:
 
 ```text
 Create a 5-day dinner plan for 3 people using offers from Netto and Rema 1000.
@@ -71,6 +49,20 @@ Any store:  <item> – <total amount>
 
 Notes: ingredients not on offer, pantry staples assumed, validity flags.
 ```
+
+**Claude Code:**
+
+```sh
+claude mcp add --transport http grocery-deals https://grocery-deals-mcp.vercel.app/mcp
+# add --scope user to make it available in all projects, --scope project to share it via .mcp.json
+claude mcp list           # check the connection
+```
+
+Inside a session, `/mcp` shows the server and its tools. To add the skill as well, copy
+`skills/weekly-meal-plan/` to `~/.claude/skills/weekly-meal-plan/`. For a local server, use
+`http://localhost:3000/mcp` as the URL.
+
+**Other MCP clients:** any client that supports remote MCP servers over Streamable HTTP can use the same URL.
 
 ## Tool: `search_deals`
 
@@ -281,38 +273,6 @@ If a request returns `401` with a Vercel login page, Deployment Protection is en
 (the default for preview deployments). Use the production domain or disable protection under
 Project → Settings → Deployment Protection, since MCP clients cannot pass the Vercel login.
 
-## Adding the server to Claude
-
-The [Claude plugin](#install-as-a-claude-plugin) sets up both the server and the skill. Use the manual steps below
-when you cannot install the plugin, or when you want the server without the skill.
-
-The endpoint is public and requires no authentication. Use the production URL
-`https://grocery-deals-mcp.vercel.app/mcp` (or `http://localhost:3000/mcp` for a local server in Claude Code).
-
-**Claude Code:**
-
-```sh
-claude mcp add --transport http grocery-deals https://grocery-deals-mcp.vercel.app/mcp
-# add --scope user to make it available in all projects, --scope project to share it via .mcp.json
-claude mcp list           # check the connection
-```
-
-Inside a session, `/mcp` shows the server and its tools. To add the skill as well, copy
-`skills/weekly-meal-plan/` to `~/.claude/skills/weekly-meal-plan/`.
-
-**Claude.ai and Claude Desktop (custom connector):**
-
-1. Settings → **Connectors** → **Add custom connector**.
-2. Name: `Grocery deals`. URL: `https://grocery-deals-mcp.vercel.app/mcp`. Leave OAuth settings empty.
-3. Enable the connector in a chat (the tools menu) and ask e.g. "Hvilke tilbud er der på kaffe?".
-4. Optional, for meal plans: zip the `skills/weekly-meal-plan/` folder (the folder itself, so the archive contains
-   `weekly-meal-plan/SKILL.md`), upload it under **Customize → Skills**, and turn it on.
-
-Connectors added on claude.ai are also available in Claude Desktop and the Claude mobile apps.
-A local server (`localhost`) cannot be used as a custom connector, because Claude connects from the cloud.
-
-**Other MCP clients:** any client that supports remote MCP servers over Streamable HTTP can use the same URL.
-
 ## Project layout
 
 - `src/offers.ts` – offers search and store offer paging requests, response validation, normalization,
@@ -324,5 +284,4 @@ A local server (`localhost`) cannot be used as a custom connector, because Claud
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
 - `skills/weekly-meal-plan/` – the meal-planning skill
-- `.claude-plugin/` – Claude plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`)
 - `test/` – tests
