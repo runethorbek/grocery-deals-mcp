@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grocery Deals til Claude</title>
+<meta name="description" content="Kom i gang med Grocery Deals i Claude: danske dagligvaretilbud, madplaner og vinforslag.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fafaf7;
+    --fg: #1f1f1c;
+    --muted: #5d5d57;
+    --card: #ffffff;
+    --border: #e2e1da;
+    --accent: #1f6f43;
+    --accent-fg: #ffffff;
+    --code-bg: #f1f0ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614;
+      --fg: #ecebe6;
+      --muted: #a8a79f;
+      --card: #20201d;
+      --border: #3a3a35;
+      --accent: #5cbf86;
+      --accent-fg: #0f1a13;
+      --code-bg: #2a2a26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 .5rem; }
+  h2 { font-size: 1.2rem; margin: 0 0 .75rem; }
+  p, ol, ul { margin: 0 0 .75rem; }
+  ol, ul { padding-left: 1.25rem; }
+  .lead { color: var(--muted); font-size: 1.05rem; margin-bottom: 1.5rem; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .copy-row {
+    display: flex;
+    gap: .5rem;
+    align-items: stretch;
+    margin: 0 0 .75rem;
+  }
+  .copy-row code {
+    flex: 1;
+    min-width: 0;
+    padding: .5rem .65rem;
+    background: var(--code-bg);
+    border-radius: 8px;
+    font: .95rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .copy-row q { quotes: none; font-family: inherit; }
+  button, .button {
+    flex: none;
+    border: 0;
+    border-radius: 8px;
+    padding: .5rem .85rem;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .skills { list-style: none; padding: 0; }
+  .skills li { margin-bottom: .9rem; }
+  .skills .button { margin-bottom: .25rem; }
+  .muted { color: var(--muted); font-size: .95rem; }
+  footer { color: var(--muted); font-size: .95rem; padding: 0 .25rem; }
+  a { color: var(--accent); }
+  .button { color: var(--accent-fg); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Grocery Deals til Claude</h1>
+  <p class="lead">Aktuelle dagligvaretilbud fra danske butikker direkte i Claude – med madplaner og vinforslag bygget på ugens tilbud.</p>
+
+  <section>
+    <h2>Trin 1 – Tilføj connectoren</h2>
+    <div class="copy-row">
+      <code>https://grocery-deals-mcp.vercel.app/mcp</code>
+      <button type="button" data-copy="https://grocery-deals-mcp.vercel.app/mcp">Kopiér</button>
+    </div>
+    <ol>
+      <li>Gå til <strong>Settings → Connectors → Add custom connector</strong> på claude.ai.</li>
+      <li>Navn: <code>Grocery deals</code>. URL: adressen ovenfor. Lad OAuth-felterne være tomme.</li>
+    </ol>
+    <p class="muted">En connector, du tilføjer på claude.ai, er også tilgængelig i Claude Desktop og Claude-mobilappene.</p>
+  </section>
+
+  <section>
+    <h2>Trin 2 – Tilføj skills</h2>
+    <ul class="skills">
+      <li>
+        <a class="button" href="https://github.com/runethorbek/grocery-deals-mcp/releases/download/skills-latest/weekly-meal-plan.zip">Hent weekly-meal-plan.zip</a><br>
+        Madplaner bygget på aktuelle tilbud.
+      </li>
+      <li>
+        <a class="button" href="https://github.com/runethorbek/grocery-deals-mcp/releases/download/skills-latest/wine-deals.zip">Hent wine-deals.zip</a><br>
+        Anbefalinger af vin på tilbud.
+      </li>
+    </ul>
+    <p>Gå til <strong>Customize → Skills</strong>, upload zip-filen og slå skillen til. Pak den ikke ud først.</p>
+    <p class="muted">Skills opdateres ikke automatisk. For at opdatere en skill skal du hente zip-filen igen og uploade den på ny.</p>
+  </section>
+
+  <section>
+    <h2>Trin 3 – Prøv det</h2>
+    <p>Start en ny samtale med connectoren og skills slået til, og spørg for eksempel:</p>
+    <div class="copy-row">
+      <code><q>Lav en madplan for 5 dage til 3 personer med tilbud fra Netto og Rema 1000.</q></code>
+      <button type="button" data-copy="Lav en madplan for 5 dage til 3 personer med tilbud fra Netto og Rema 1000.">Kopiér</button>
+    </div>
+    <div class="copy-row">
+      <code><q>Er der noget spændende rødvin på tilbud under 100 kr.?</q></code>
+      <button type="button" data-copy="Er der noget spændende rødvin på tilbud under 100 kr.?">Kopiér</button>
+    </div>
+    <div class="copy-row">
+      <code><q>Hvilke tilbud er der på kaffe?</q></code>
+      <button type="button" data-copy="Hvilke tilbud er der på kaffe?">Kopiér</button>
+    </div>
+  </section>
+
+  <footer>
+    <p>Udvikler, eller bruger du Claude Code eller en anden MCP-klient? Se <a href="https://github.com/runethorbek/grocery-deals-mcp#readme">README på GitHub</a>.</p>
+    <p>Serveren er stateless og gemmer ingen personlige data.</p>
+  </footer>
+</main>
+<script>
+  document.querySelectorAll("button[data-copy]").forEach(function (button) {
+    if (!navigator.clipboard) { button.hidden = true; return; }
+    button.addEventListener("click", function () {
+      navigator.clipboard.writeText(button.dataset.copy).then(function () {
+        button.textContent = "Kopieret";
+      }, function () {
+        button.textContent = "Markér og kopiér";
+      }).then(function () {
+        setTimeout(function () { button.textContent = "Kopiér"; }, 2000);
+      });
+    });
+  });
+</script>
+</body>
+</html>
