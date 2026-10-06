@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "tsx scripts/dev-server.ts",
+    "package-skills": "tsx scripts/package-skills.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "fflate": "^0.8.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
