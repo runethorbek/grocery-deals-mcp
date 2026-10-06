@@ -54,16 +54,22 @@ jobs:
             exit 1
           fi
 
-          # Point the tag at the built commit, so the tag, source archives and notes agree.
-          git tag -f "$TAG" "$SHA"
-          git push -f origin "refs/tags/$TAG"
-
           notes="Skill zips built from commit [$SHA]($COMMIT_URL).
 
           Download a zip and upload it under **Customize → Skills** on claude.ai. Installed skills are not updated automatically; download and upload the zip again to update."
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --target "$SHA" --notes "$notes"
-          else
+
+          # Point the tag at the built commit, so the tag, source archives and notes agree.
+          move_tag() {
+            git tag -f "$TAG" "$SHA"
+            git push -f origin "refs/tags/$TAG"
+          }
+
+          # On the first run the release must exist before assets can be uploaded. Otherwise the tag and
+          # notes are moved only after the upload succeeds, so they never name a commit whose zips are missing.
+          release_exists=true
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            release_exists=false
+            move_tag
             gh release create "$TAG" --verify-tag --title "Skills (latest)" --notes "$notes"
           fi
 
@@ -75,3 +81,8 @@ jobs:
               *.zip) [ -f "dist/skills/$name" ] || gh release delete-asset "$TAG" "$name" --yes ;;
             esac
           done
+
+          if [ "$release_exists" = true ]; then
+            move_tag
+            gh release edit "$TAG" --target "$SHA" --notes "$notes"
+          fi
