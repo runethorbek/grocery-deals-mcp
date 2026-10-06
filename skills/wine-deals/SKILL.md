@@ -29,7 +29,7 @@ If a call returns an error, you may retry it once. If any Grocery Deals tool is 
 
 1. **Resolve stores.** Call `list_stores` (once without `query` for the default set, or with each store name the user gave, e.g. `query: "føtex"`). Use the `dealerId` from the result; never guess or reuse an ID from memory.
    - Exactly one match: use it.
-   - Several matches: use the one whose name equals the store name (ignoring case); for a user-named store where none does, ask the user which store they mean.
+   - Several matches: use the one whose name equals the store name (ignoring case); for a user-named store where none does, ask the user which store they mean; for the default set, skip it and mention it in the assumptions.
    - No match: for a user-named store, tell the user it could not be found and continue with the others; for the default set, skip it and mention it in the assumptions. If no store resolved, stop.
 2. **Search for wine, bounded.** Call `search_deals` with `limit: 50` and `dealerIds` set to one store, or a small group of at most three stores, at a time, so one store cannot fill the 100-offer window. Start with `"vin"`, then add a few terms that fit the request, e.g. `"rødvin"`, `"hvidvin"`, `"rosé"`, `"mousserende"`, `"champagne"`, `"cava"`, `"prosecco"`, or a country, region or grape the user mentioned (`"italien"`, `"rioja"`, `"barolo"`). If a group search returns 50 offers or is dominated by one store, repeat it per store. Keep the total to about 15 `search_deals` calls.
 3. **Optional browse.** For a store whose search results look thin, you may call `get_store_offers` with `limit: 100`, at most one page per store, and pick out the wine offers.
@@ -39,7 +39,7 @@ Keep only wine. Ignore glassware, food or other products whose text merely menti
 ## 3. Recommending
 
 - Shortlist 3–5 offers by default, or the number the user asks for. Choose and explain them for value, an interesting style, region or grape, or learning value; not by discount alone. Prefer a varied shortlist over several similar bottles.
-- **Multi-wine offers** (e.g. "Righetti Amarone, Faustino 1 Gran Reserva eller Brunello di Montalcino Cordella"): name the specific wine you mean, note that the price covers a choice of wines, and never attach one wine's details to another.
+- **Multi-wine offers** (e.g. "Righetti Amarone, Faustino 1 Gran Reserva eller Brunello di Montalcino Cordella"): name the specific wine you mean, note that the price covers a choice of wines, and never attach one wine's details to another. When a claim, score or tasting note in the offer text does not say which of the wines it refers to, say that this is unclear rather than attributing it to the wine you recommend.
 - **Category offers** (e.g. "Italienske vinflasker" with "Spar 40% på mere end 50 italienske vinflasker"): mention them only as a pointer to the store. Their `price` is not a bottle price, and the specific bottles included are not known from the data.
 - **Thin data:** Many offers give only a brand and a colour. When the data is too thin for a confident recommendation, say so instead of filling the gaps. If there are few or no wine offers matching the request, say that rather than stretching the shortlist.
 
