@@ -4,6 +4,9 @@ A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsav
 
 ## Adding the server to Claude
 
+For a short get-started guide in Danish for claude.ai, Claude Desktop and the mobile apps, see
+https://grocery-deals-mcp.vercel.app/.
+
 The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so the
 connector needs nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill
 adds meal planning on top of the tools, and the [`wine-deals`](skills/wine-deals/SKILL.md) skill adds wine offer
@@ -212,7 +215,7 @@ npm run dev
 
 The MCP endpoint is served over Streamable HTTP at `http://localhost:3000/mcp`
 (set `PORT` to use another port). The server is stateless: every request is handled independently,
-and only `POST` is supported.
+and only `POST` is supported. `http://localhost:3000/` serves the landing page from `public/index.html`.
 
 ## Testing locally with the MCP Inspector
 
@@ -265,13 +268,15 @@ How it fits together:
 
 - `api/mcp.ts` is a Vercel Node.js function (no framework, no build step; Vercel compiles the TypeScript).
 - `vercel.json` rewrites `/mcp` to `/api/mcp`, so the public endpoint is `https://<your-project>.vercel.app/mcp`.
+- `vercel.json` sets `outputDirectory` to `public`, so `public/index.html` is served at `/`. The `api/` function and
+  the `/mcp` rewrite are unaffected.
 - No environment variables or secrets are required. The Tjek API is called without credentials.
 
 Steps (Vercel CLI):
 
 ```sh
 npx vercel login          # once per machine
-npx vercel link           # create or link the Vercel project; framework preset "Other", no build/output settings
+npx vercel link           # create or link the Vercel project; framework preset "Other", no build command (output dir comes from vercel.json)
 npx vercel                # preview deployment
 npx vercel --prod         # production deployment
 ```
@@ -293,6 +298,7 @@ Project → Settings → Deployment Protection, since MCP clients cannot pass th
 - `src/mcp-server.ts` – MCP server and the `search_deals`, `list_stores` and `get_store_offers` tools
 - `src/http.ts` – stateless Streamable HTTP handler
 - `api/mcp.ts` – Vercel function entry point
+- `public/index.html` – get-started landing page served at the site root
 - `scripts/dev-server.ts` – local HTTP server
 - `scripts/package-skills.ts` – zips each skill in `skills/` to `dist/skills/<name>.zip` for upload to claude.ai
 - `.github/workflows/package-skills.yml` – rebuilds the skill zips on changes to `main` and publishes them to the
