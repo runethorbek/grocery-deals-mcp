@@ -7,24 +7,30 @@ A remote MCP server that exposes Danish grocery deals from the Tjek / eTilbudsav
 The server is hosted at `https://grocery-deals-mcp.vercel.app/mcp`. It is public and needs no sign-in, so the
 connector needs nothing to clone and no local process. The [`weekly-meal-plan`](skills/weekly-meal-plan/SKILL.md) skill
 adds meal planning on top of the tools, and the [`wine-deals`](skills/wine-deals/SKILL.md) skill adds wine offer
-recommendations; packaging them for claude.ai needs a clone of this repository (or a hand-made zip).
+recommendations. Both are available as ready-made zips for claude.ai, so they need no clone, Node.js or terminal either.
 
 **Claude.ai and Claude Desktop (custom connector and skill):**
 
 1. Settings → **Connectors** → **Add custom connector**.
 2. Name: `Grocery deals`. URL: `https://grocery-deals-mcp.vercel.app/mcp`. Leave OAuth settings empty.
 3. Enable the connector in a chat (the tools menu) and ask e.g. "Hvilke tilbud er der på kaffe?".
-4. For meal plans: in a clone of this repository, run `npm install` and `npm run package-skills`, then upload
-   `dist/skills/weekly-meal-plan.zip` under **Customize → Skills** and turn it on. To zip by hand instead, zip the
-   folder itself, so the archive contains `weekly-meal-plan/SKILL.md`. For wine offers, upload
-   `dist/skills/wine-deals.zip` the same way.
+4. Download the skill zips you want:
+   - Meal plans: [`weekly-meal-plan.zip`](https://github.com/runethorbek/grocery-deals-mcp/releases/download/skills-latest/weekly-meal-plan.zip)
+   - Wine offers: [`wine-deals.zip`](https://github.com/runethorbek/grocery-deals-mcp/releases/download/skills-latest/wine-deals.zip)
+5. Upload each zip under **Customize → Skills** and turn it on. Do not unpack it first.
 
 Connectors added on claude.ai are also available in Claude Desktop and the Claude mobile apps.
 A local server (`localhost`) cannot be used as a custom connector, because Claude connects from the cloud.
 
-To update a skill after its folder in `skills/` changes, run `npm run package-skills` again and upload the new zip
-(e.g. `dist/skills/weekly-meal-plan.zip`) under **Customize → Skills**. The script writes one zip per folder in `skills/`
-that contains a `SKILL.md`, overwrites existing zips and prints the path of each zip it writes.
+The zips are rebuilt automatically from `main` whenever a skill changes, and the
+[`skills-latest` release](https://github.com/runethorbek/grocery-deals-mcp/releases/tag/skills-latest) notes show the
+commit they were built from. Installed skills are not updated automatically: to update a skill, download its zip again
+from the link above and upload it under **Customize → Skills**.
+
+To build the zips yourself (e.g. for unreleased changes or a fork), run `npm install` and `npm run package-skills` in a
+clone of this repository, then upload e.g. `dist/skills/weekly-meal-plan.zip`. The script writes one zip per folder in
+`skills/` that contains a `SKILL.md`, overwrites existing zips and prints the path of each zip it writes. To zip by hand
+instead, zip the skill folder itself, so the archive contains e.g. `weekly-meal-plan/SKILL.md`.
 
 **Example.** With the connector and the skill turned on, ask in a new conversation:
 
@@ -289,6 +295,8 @@ Project → Settings → Deployment Protection, since MCP clients cannot pass th
 - `api/mcp.ts` – Vercel function entry point
 - `scripts/dev-server.ts` – local HTTP server
 - `scripts/package-skills.ts` – zips each skill in `skills/` to `dist/skills/<name>.zip` for upload to claude.ai
+- `.github/workflows/package-skills.yml` – rebuilds the skill zips on changes to `main` and publishes them to the
+  `skills-latest` release
 - `skills/weekly-meal-plan/` – the meal-planning skill
 - `skills/wine-deals/` – the wine offer recommendation skill
 - `test/` – tests

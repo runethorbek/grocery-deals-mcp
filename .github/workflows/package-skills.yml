@@ -1,0 +1,77 @@
+# Builds one zip per skill in skills/ and publishes them to the `skills-latest` GitHub Release,
+# so the README can link to ready-made zips for upload to claude.ai.
+name: Package skills
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "scripts/package-skills.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/package-skills.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One run at a time; a newer run waits for the current one and replaces any older pending run,
+# so the latest commit is published last.
+concurrency:
+  group: package-skills
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # The release mirrors main; a manual run on another branch must not overwrite it.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run package-skills
+
+      - name: Publish zips to the skills-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: skills-latest
+          SHA: ${{ github.sha }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zips=(dist/skills/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No zips in dist/skills." >&2
+            exit 1
+          fi
+
+          # Point the tag at the built commit, so the tag, source archives and notes agree.
+          git tag -f "$TAG" "$SHA"
+          git push -f origin "refs/tags/$TAG"
+
+          notes="Skill zips built from commit [$SHA]($COMMIT_URL).
+
+          Download a zip and upload it under **Customize → Skills** on claude.ai. Installed skills are not updated automatically; download and upload the zip again to update."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --target "$SHA" --notes "$notes"
+          else
+            gh release create "$TAG" --verify-tag --title "Skills (latest)" --notes "$notes"
+          fi
+
+          gh release upload "$TAG" "${zips[@]}" --clobber
+
+          # Remove zips for skills that no longer exist; everything just uploaded is in dist/skills.
+          gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r name; do
+            case "$name" in
+              *.zip) [ -f "dist/skills/$name" ] || gh release delete-asset "$TAG" "$name" --yes ;;
+            esac
+          done
